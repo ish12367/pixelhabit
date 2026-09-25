@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>System — Habit Tracker</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --bg-deep: #060810;
+    --surface: #131a29;
+    --surface-hi: #1a2436;
+    --line: #24304a;
+    --text: #e8ecf3;
+    --muted: #6c7891;
+    --accent: #5eb8ff;
+    --accent-soft: #9adcff;
+    --accent-glow: rgba(94, 184, 255, 0.35);
+    --flame: #ffb020;
+    --danger: #ff6b6b;
+    --xp: #7c5cff;
+    --study: #3ddc97;
+  }
+  body.light {
+    --bg: #f3f4f8;
+    --bg-deep: #ffffff;
+    --surface: #ffffff;
+    --surface-hi: #eef0f6;
+    --line: #dde1ec;
+    --text: #1b2030;
+    --muted: #7d8499;
+    --accent: #2f6fdc;
+    --accent-soft: #4f89e8;
+    --accent-glow: rgba(47, 111, 220, 0.18);
+    --flame: #c97a2e;
+    --danger: #c94f4f;
+    --xp: #5b3fd6;
+    --study: #1f9d6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 15% -10%, var(--accent-glow) 0%, transparent 45%),
+      var(--bg);
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    padding: 36px 74px 60px 14px;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .mono { font-family: 'Menlo', 'Consolas', monospace; }
+  .app { width: 100%; max-width: 640px; }
+
+  /* ---- Top bar ---- */
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .brand { display: flex; align-items: center; gap: 8px; }
+  .brand-mark {
+    font-family: 'Menlo', monospace; font-weight: 700; font-size: 0.7rem;
+    color: var(--accent); border: 1px solid var(--line); border-radius: 6px;
+    padding: 3px 7px; letter-spacing: 0.08em;
+    text-shadow: 0 0 8px var(--accent-glow);
+  }
+  h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+  .theme-btn {
+    background: var(--surface); border: 1px solid var(--line); color: var(--text);
+    border-radius: 8px; width: 30px; height: 30px; display: flex; align-items: center;
+    justify-content: center; cursor: pointer; font-size: 0.9rem;
+  }
+  .user-chip { font-family: 'Menlo', monospace; font-size: 0.68rem; color: var(--muted); }
+
+  .auth-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
+  .auth-card { width: 100%; max-width: 360px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 26px 22px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+  .auth-tabs { display: flex; gap: 4px; background: var(--bg-deep); border: 1px solid var(--line); border-radius: 10px; padding: 4px; margin: 0 auto 18px; width: fit-content; }
+  .auth-tabs button { background: none; border: none; color: var(--muted); font-family: inherit; font-weight: 700; font-size: 0.78rem; padding: 7px 16px; border-radius: 7px; cursor: pointer; }
+  .auth-tabs button.active { background: var(--accent); color: var(--bg-deep); }
+  .auth-form { display: flex; flex-direction: column; gap: 10px; }
+  .auth-form input {
+    padding: 12px 14px; border: 1px solid var(--line); background: var(--bg-deep);
+    color: var(--text); font-family: inherit; font-size: 0.88rem; border-radius: 10px;
+  }
+  .auth-form input:focus { outline: none; border-color: var(--accent); }
+  .auth-form button#authSubmitBtn {
+    background: var(--accent); color: var(--bg-deep); border: none; padding: 12px;
+    border-radius: 10px; font-family: inherit; font-weight: 800; font-size: 0.9rem; cursor: pointer; margin-top: 4px;
+  }
+  .auth-error { color: var(--danger); font-size: 0.76rem; min-height: 1em; text-align: center; }
+  .auth-hint { font-size: 0.66rem; color: var(--muted); text-align: center; margin-top: 12px; line-height: 1.4; }
+
+  /* ---- Nav tabs ---- */
+  .tabs-main { display: flex; gap: 4px; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px; overflow-x: auto; }
+  .tabs-main button {
+    flex: 1; background: none; border: none; color: var(--muted); font-family: inherit;
+    font-weight: 700; font-size: 0.7rem; padding: 8px 4px; border-radius: 7px; cursor: pointer;
+    white-space: nowrap; transition: all 0.15s ease;
+  }
+  .tabs-main button.active { background: var(--accent); color: var(--bg-deep); }
+
+  .sidebar {
+    position: fixed; top: 50%; right: 10px; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 8px; width: 54px; z-index: 40;
+  }
+  .side-btn {
+    background: var(--surface); border: 1px solid var(--line); color: var(--muted);
+    border-radius: 10px; font-family: inherit; font-weight: 700; font-size: 0.58rem;
+    padding: 10px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 2px; transition: all 0.15s ease; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  }
+  .side-btn span { display: none; }
+  .side-btn:hover { border-color: var(--accent); color: var(--text); }
+  .side-btn.active { background: var(--accent); color: var(--bg-deep); border-color: var(--accent); }
+  @media (min-width: 860px) {
+    body { padding-right: 130px; }
+    .sidebar { right: 24px; width: 74px; gap: 10px; }
+    .side-btn { padding: 14px 6px; font-size: 0.62rem; gap: 4px; }
+    .side-btn span { display: block; line-height: 1.1; }
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ---- Player status panel ---- */
+  .status-panel {
+    position: relative;
+    background: linear-gradient(160deg, var(--surface-hi), var(--surface));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .status-panel::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 40%, var(--accent-glow) 50%, transparent 60%);
+    pointer-events: none;
+  }
+  .status-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; position: relative; }
+  .status-tag { font-family: 'Menlo', monospace; font-size: 0.65rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+  .level-line { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+  .level-num { font-size: 2.1rem; font-weight: 800; letter-spacing: -0.02em; text-shadow: 0 0 18px var(--accent-glow); }
+  .level-label { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+  .rank-badge {
+    font-family: 'Menlo', monospace; font-weight: 800; font-size: 1.3rem;
+    border: 2px solid var(--accent); color: var(--accent); border-radius: 10px;
+    width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+    text-shadow: 0 0 10px var(--accent-glow); box-shadow: 0 0 14px var(--accent-glow) inset;
+  }
+  .xp-track { position: relative; height: 12px; background: var(--bg-deep); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+  .xp-fill { height: 100%; background: linear-gradient(90deg, var(--xp), var(--accent)); border-radius: 99px; transition: width 0.4s ease; box-shadow: 0 0 10px var(--accent-glow); }
+  .xp-label { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--muted); margin-top: 6px; font-family: 'Menlo', monospace; }
+
+  .stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat-box { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: center; }
+  .stat-box .num { font-size: 1.25rem; font-weight: 800; }
+  .stat-box .lbl { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+
+  .next-up-banner {
+    display: flex; align-items: center; gap: 12px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 20px;
+    cursor: pointer; transition: border-color 0.15s ease;
+  }
+  .next-up-banner:hover { border-color: var(--study); }
+  .next-up-tag { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .next-up-body { flex: 1; min-width: 0; }
+  .next-up-title { font-size: 0.85rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .next-up-meta { font-size: 0.68rem; color: var(--muted); font-family: 'Menlo', monospace; }
+  .next-up-meta.soon { color: var(--flame); }
+  .next-up-meta.overdue { color: var(--danger); }
+  .next-up-arrow { color: var(--muted); font-size: 0.9rem; }
+
+  .subject-mini { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s ease; }
+  .subject-mini:hover { border-color: var(--study); }
+  .subject-mini-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .subject-mini-name { font-size: 0.85rem; font-weight: 700; }
+  .subject-mini-due { font-size: 0.65rem; color: var(--muted); font-family: 'Menlo', monospace; }
+  .subject-mini-due.soon { color: var(--flame); }
+  .subject-mini-due.overdue { color: var(--danger); }
+  .subject-mini-progress { display: flex; align-items: center; gap: 8px; }
+  .subject-mini-progress .bar-track { flex: 1; height: 6px; }
+  .subject-mini-progress .pct { font-size: 0.65rem; font-weight: 700; color: var(--study); width: 30px; text-align: right; }
+
+  /* ---- Quests (home habit list) ---- */
+  .section-label { font-family: 'Menlo', monospace; font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 10px 2px; display: flex; justify-content: space-between; align-items: center; }
+  .quest {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 8px; position: relative; overflow: hidden;
+    transition: border-color 0.15s ease;
+  }
+  .quest:hover { border-color: var(--accent); }
+  .quest.done { border-color: var(--accent); }
+  .quest-check {
+    width: 26px; height: 26px; border-radius: 7px; border: 1.5px solid var(--accent);
+    background: var(--bg-deep); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: transparent; flex-shrink: 0; transition: all 0.15s ease;
+  }
+  .quest-check.done { background: var(--accent); box-shadow: 0 0 12px var(--accent-glow); color: var(--bg-deep); }
+  .quest-name { flex: 1; font-size: 0.92rem; font-weight: 600; }
+  .quest.done .quest-name { color: var(--muted); text-decoration: line-through; }
+  .quest-xp { font-family: 'Menlo', monospace; font-size: 0.68rem; color: var(--xp); font-weight: 700; }
+  .quest-streak { font-size: 0.68rem; color: var(--flame); font-weight: 700; display: flex; align-items: center; gap: 2px; }
+  .quest-del { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 0 2px; }
+  .quest-del:hover { color: var(--danger); }
+  .quest.pop { animation: questPop 0.3s ease; }
+  @keyframes questPop { 0% { box-shadow: 0 0 0 rgba(94,184,255,0); } 40% { box-shadow: 0 0 20px var(--accent-glow); } 100% { box-shadow: 0 0 0 rgba(94,184,255,0); } }
+
+  .quest-deadline {
+    font-size: 0.65rem; font-weight: 700; color: var(--muted); font-family: 'Menlo', monospace;
+    border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; cursor: pointer; white-space: nowrap;
+  }
+  .quest-deadline.soon { color: var(--flame); border-color: var(--flame); }
+  .quest-deadline.overdue { color: var(--danger); border-color: var(--danger); }
+  .quest-deadline-btn {
+    background: none; border: 1px dashed var(--line); color: var(--muted); border-radius: 6px;
+    padding: 3px 6px; font-family: inherit; font-size: 0.65rem; cursor: pointer; white-space: nowrap;
+  }
+  .quest-deadline-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .quest-wrap { display: flex; flex-direction: column; margin-bottom: 8px; }
+  .quest-edit-row { display: none; gap: 6px; padding: 8px 14px 2px; background: var(--surface); border: 1px solid var(--line); border-top: none; border-radius: 0 0 12px 12px; margin-top: -8px; }
+  .quest-edit-row.open { display: flex; }
+  .quest-edit-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--accent); background: var(--bg-deep); color: var(--text); font-family: inherit; font-size: 0.78rem; border-radius: 7px; }
+  .quest-edit-row button { background: var(--accent); color: var(--bg-deep); border: none; border-radius: 7px; padding: 0 10px; font-family: inherit; font-weight: 700; font-size: 0.72rem; cursor: pointer; }
+  .quest-edit-row button.clear-btn { background: none; border: 1px solid var(--danger); color: var(--danger); }
+
+  .add-row { display: flex; gap: 8px; margin: 18px 0 4px; }
+  .add-row input, .add-row select {
+    flex: 1; padding: 12px 14px; border: 1px solid var(--line); background: var(--surface);
+    color: var(--text); font-family: inherit; font-size: 0.9rem; border-radius: 10px;
+  }
+  .add-row input::placeholder { color: var(--muted); }
+  .add-row input:focus, .add-row select:focus { outline: none; border-color: var(--accent); }
+  .add-row button {
+    background: var(--accent); color: var(--bg-deep); border: none; padding: 0 18px;
+    border-radius: 10px; font-family: inherit; font-weight: 700; font-size: 0.9rem; cursor: pointer;
+  }
+  .add-row button:hover { filter: brightness(1.1); }
+
+  .empty { font-size: 0.85rem; color: var(--muted); padding: 24px 4px; text-align: center; }
+
+  /* ---- Toast ---- */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-10px);
+    background: var(--surface-hi); border: 1px solid var(--accent); color: var(--accent);
+    font-family: 'Menlo', monospace; font-weight: 700; font-size: 0.8rem;
+    padding: 10px 18px; border-radius: 10px; box-shadow: 0 0 20px var(--accent-glow);
+    opacity: 0; pointer-events: none; transition: all 0.25s ease; z-index: 80;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---- Week grid (reused) ---- */
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .nav { display: flex; gap: 6px; }
+  .nav button { background: var(--surface); border: 1px solid var(--line); color: var(--muted); border-radius: 8px; font-family: inherit; font-size: 0.72rem; font-weight: 600; cursor: pointer; padding: 6px 10px; }
+  .nav button:hover { color: var(--text); border-color: var(--accent); }
+  .range { color: var(--muted); font-size: 0.8rem; margin-bottom: 18px; }
+  .day-header { display: grid; grid-template-columns: 1fr repeat(7, 32px) 44px 24px; gap: 6px; padding: 0 2px 8px; }
+  .day-header span { text-align: center; font-size: 0.65rem; font-weight: 700; color: var(--muted); letter-spacing: 0.03em; }
+  .day-header span.today { color: var(--accent); }
+  .habit-row { display: grid; grid-template-columns: 1fr repeat(7, 32px) 44px 24px; gap: 6px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; margin-bottom: 8px; }
+  .habit-row:hover { border-color: var(--accent); }
+  .habit-name { font-size: 0.9rem; font-weight: 600; padding-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 28px; height: 28px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--bg-deep); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; color: transparent; margin: 0 auto; transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease; }
+  .dot.done { background: var(--accent); border-color: var(--accent); color: var(--bg-deep); box-shadow: 0 0 12px var(--accent-glow); }
+  .dot.today-outline { border-color: var(--accent); }
+  .dot:not(.future):active { transform: scale(0.85); }
+  .dot.future { opacity: 0.35; cursor: default; }
+  .dot.pop { animation: pop 0.25s ease; }
+  @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+  .streak { display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 0.75rem; font-weight: 700; color: var(--flame); }
+  .streak.zero { color: var(--muted); opacity: 0.6; }
+  .del { background: none; border: none; color: var(--muted); font-size: 1.05rem; cursor: pointer; padding: 0; }
+  .del:hover { color: var(--danger); }
+
+  /* ---- Report ---- */
+  .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .report-header h2 { font-size: 1rem; font-weight: 800; margin: 0; }
+  .rtabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+  .rtabs button { background: none; border: none; color: var(--muted); font-family: inherit; font-size: 0.72rem; font-weight: 700; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+  .rtabs button.active { background: var(--accent); color: var(--bg-deep); }
+  .report-summary { font-size: 0.78rem; color: var(--muted); margin-bottom: 14px; }
+  .report-summary b { color: var(--text); }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .bar-name { width: 110px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 10px; background: var(--bg-deep); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--xp), var(--accent)); border-radius: 99px; transition: width 0.3s ease; }
+  .bar-pct { width: 36px; text-align: right; font-size: 0.72rem; color: var(--muted); }
+
+  /* ---- Calendar ---- */
+  .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .cal-header h2 { font-size: 1rem; font-weight: 800; margin: 0; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 12px; }
+  .cal-dow { text-align: center; font-size: 0.62rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; padding-bottom: 4px; }
+  .cal-cell {
+    aspect-ratio: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 9px;
+    padding: 5px; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+    position: relative; transition: border-color 0.15s ease;
+  }
+  .cal-cell:hover { border-color: var(--accent); }
+  .cal-cell.outside { opacity: 0.3; }
+  .cal-cell.today { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow) inset; }
+  .cal-cell.selected { background: var(--surface-hi); border-color: var(--accent); }
+  .cal-daynum { font-size: 0.72rem; font-weight: 700; margin-top: 1px; }
+  .cal-dots { display: flex; gap: 2px; margin-top: auto; flex-wrap: wrap; justify-content: center; }
+  .cal-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .evt-homework { background: var(--accent); }
+  .evt-deadline { background: var(--danger); }
+  .evt-test { background: var(--xp); }
+  .evt-study { background: var(--study); }
+  .evt-other { background: var(--flame); }
+
+  .selected-day-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 18px; font-size: 0.8rem; font-weight: 600;
+  }
+  .expand-btn {
+    background: var(--accent); color: var(--bg-deep); border: none; border-radius: 7px;
+    padding: 6px 12px; font-family: inherit; font-weight: 700; font-size: 0.72rem; cursor: pointer;
+  }
+
+  .cal-form { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
+  .cal-form-row { display: flex; gap: 8px; }
+  .cal-form input, .cal-form select {
+    flex: 1; padding: 10px 12px; border: 1px solid var(--line); background: var(--bg-deep);
+    color: var(--text); font-family: inherit; font-size: 0.85rem; border-radius: 8px;
+  }
+  .cal-form input:focus, .cal-form select:focus { outline: none; border-color: var(--accent); }
+  .cal-form button {
+    background: var(--accent); color: var(--bg-deep); border: none; padding: 10px 16px;
+    border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+  }
+
+  .evt-item {
+    display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+  }
+  .evt-tag { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .evt-info { flex: 1; min-width: 0; }
+  .evt-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .evt-meta { font-size: 0.68rem; color: var(--muted); font-family: 'Menlo', monospace; }
+  .evt-meta.overdue { color: var(--danger); }
+  .evt-meta.soon { color: var(--flame); }
+  .evt-del { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 0 2px; }
+  .evt-del:hover { color: var(--danger); }
+
+  /* ---- Subjects / portion tracker ---- */
+  .subject-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .subject-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+  .subject-name { font-size: 1rem; font-weight: 800; }
+  .subject-exam { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: var(--muted); }
+  .subject-exam input { background: var(--bg-deep); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 6px; font-family: inherit; font-size: 0.72rem; }
+  .subject-progress { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .subject-progress .bar-track { flex: 1; }
+  .subject-progress .pct { font-size: 0.72rem; font-weight: 700; color: var(--study); width: 34px; text-align: right; }
+  .portion-list { margin-bottom: 8px; }
+  .portion-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 0.82rem; }
+  .portion-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--study); background: var(--bg-deep); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; flex-shrink: 0; }
+  .portion-check.done { background: var(--study); color: var(--bg-deep); }
+  .portion-name { flex: 1; }
+  .portion-item.done .portion-name { color: var(--muted); text-decoration: line-through; }
+  .mini-del { background: none; border: none; color: var(--muted); font-size: 0.9rem; cursor: pointer; }
+  .mini-del:hover { color: var(--danger); }
+  .mini-add-row { display: flex; gap: 6px; margin-top: 6px; }
+  .mini-add-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--line); background: var(--bg-deep); color: var(--text); font-family: inherit; font-size: 0.78rem; border-radius: 7px; }
+  .mini-add-row input:focus { outline: none; border-color: var(--study); }
+  .mini-add-row button { background: var(--study); color: var(--bg-deep); border: none; border-radius: 7px; padding: 0 12px; font-family: inherit; font-weight: 700; font-size: 0.78rem; cursor: pointer; }
+  .subject-subhead { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 4px; }
+  .hw-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 0.8rem; }
+  .hw-item .hw-name { flex: 1; }
+  .hw-item .hw-date { font-family: 'Menlo', monospace; font-size: 0.66rem; color: var(--muted); }
+  .subject-del { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; }
+  .subject-del:hover { color: var(--danger); }
+  .new-subject-form { display: flex; gap: 8px; }
+  .new-subject-form input { flex: 1; padding: 12px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-family: inherit; font-size: 0.9rem; border-radius: 10px; }
+  .new-subject-form input:focus { outline: none; border-color: var(--study); }
+  .new-subject-form button { background: var(--study); color: var(--bg-deep); border: none; padding: 0 18px; border-radius: 10px; font-family: inherit; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+
+  /* ---- Full-screen day modal ---- */
+  .day-modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(2, 4, 8, 0.72);
+    z-index: 100; justify-content: center; align-items: flex-start; padding: 24px 14px; overflow-y: auto;
+  }
+  .day-modal-overlay.open { display: flex; }
+  .day-modal {
+    width: 100%; max-width: 560px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 18px; padding: 22px; box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  }
+  .day-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .day-modal-header h2 { font-size: 1.1rem; font-weight: 800; margin: 0; }
+  .day-modal-close { background: var(--surface); border: 1px solid var(--line); color: var(--text); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+  .day-modal-sub { font-size: 0.75rem; color: var(--muted); margin-bottom: 18px; }
+  .timeline { margin-bottom: 20px; max-height: 480px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; }
+  .allday-section { padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .allday-label { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .timeline-item { display: flex; gap: 10px; padding: 6px 0; }
+  .timeline-bar { width: 3px; border-radius: 2px; flex-shrink: 0; align-self: stretch; }
+  .timeline-body { flex: 1; }
+  .timeline-title { font-size: 0.85rem; font-weight: 700; }
+  .timeline-tag { font-size: 0.63rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .timeline-del { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; flex-shrink: 0; }
+  .timeline-del:hover { color: var(--danger); }
+
+  .hour-row { display: flex; border-bottom: 1px solid var(--line); min-height: 44px; }
+  .hour-row:last-child { border-bottom: none; }
+  .hour-row.current-hour { background: var(--accent-glow); }
+  .hour-row:hover .hour-content.empty { background: var(--surface-hi); cursor: pointer; }
+  .hour-label {
+    width: 58px; flex-shrink: 0; font-family: 'Menlo', monospace; font-size: 0.68rem; color: var(--muted);
+    padding: 8px 10px 0 0; text-align: right; border-right: 1px solid var(--line);
+  }
+  .hour-content { flex: 1; padding: 6px 10px; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+  .hour-content.empty { min-height: 30px; }
+  .day-add-form { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .day-add-row { display: flex; gap: 8px; }
+  .day-add-form input, .day-add-form select {
+    flex: 1; padding: 10px 12px; border: 1px solid var(--line); background: var(--bg-deep);
+    color: var(--text); font-family: inherit; font-size: 0.85rem; border-radius: 8px;
+  }
+  .day-add-form input:focus, .day-add-form select:focus { outline: none; border-color: var(--accent); }
+  .day-add-form button { background: var(--accent); color: var(--bg-deep); border: none; padding: 10px 16px; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+
+  /* ---- Subscriptions ---- */
+  .sub-total-panel {
+    background: linear-gradient(160deg, var(--surface-hi), var(--surface));
+    border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-bottom: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .sub-total-label { font-family: 'Menlo', monospace; font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .sub-total-amount { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; }
+  .sub-total-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .sub-total-yearly { text-align: right; font-size: 0.75rem; color: var(--muted); }
+  .sub-total-yearly b { color: var(--text); font-size: 0.95rem; }
+
+  .review-banner {
+    display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--flame);
+    color: var(--flame); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.78rem; font-weight: 600;
+  }
+
+  .new-sub-form { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 18px; }
+  .new-sub-row { display: flex; gap: 8px; }
+  .new-sub-form input, .new-sub-form select {
+    flex: 1; padding: 10px 12px; border: 1px solid var(--line); background: var(--bg-deep);
+    color: var(--text); font-family: inherit; font-size: 0.85rem; border-radius: 8px;
+  }
+  .new-sub-form input:focus, .new-sub-form select:focus { outline: none; border-color: var(--accent); }
+  .new-sub-form button { background: var(--accent); color: var(--bg-deep); border: none; padding: 10px 16px; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+  .sub-price-hint { font-size: 0.68rem; color: var(--study); margin-top: -2px; }
+
+  .sub-item { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+  .sub-item.due { border-color: var(--flame); }
+  .sub-item-top { display: flex; align-items: center; gap: 10px; }
+  .sub-name { flex: 1; font-size: 0.9rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub-price { font-family: 'Menlo', monospace; font-size: 0.9rem; font-weight: 700; }
+  .sub-cycle { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; }
+  .sub-del { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; }
+  .sub-del:hover { color: var(--danger); }
+  .sub-item-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .sub-checked { font-size: 0.68rem; color: var(--muted); font-family: 'Menlo', monospace; }
+  .sub-checked.due { color: var(--flame); font-weight: 700; }
+  .sub-check-btn {
+    background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 7px;
+    padding: 5px 10px; font-family: inherit; font-weight: 700; font-size: 0.68rem; cursor: pointer;
+  }
+  .sub-check-btn:hover { background: var(--accent); color: var(--bg-deep); }
+  .sub-edit-row { display: flex; gap: 6px; margin-top: 8px; }
+  .sub-edit-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--accent); background: var(--bg-deep); color: var(--text); font-family: inherit; font-size: 0.8rem; border-radius: 7px; }
+  .sub-edit-row button { background: var(--accent); color: var(--bg-deep); border: none; border-radius: 7px; padding: 0 12px; font-family: inherit; font-weight: 700; font-size: 0.78rem; cursor: pointer; }
+
+  @media (max-width: 480px) {
+    .day-header, .habit-row { grid-template-columns: 84px repeat(7, 1fr) 34px 18px; gap: 3px; }
+    .bar-name { width: 80px; }
+    .cal-form-row, .day-add-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <div class="brand" style="justify-content:center; margin-bottom:18px;">
+      <span class="brand-mark">SYSTEM</span>
+      <h1>Streaks</h1>
+    </div>
+    <div class="auth-tabs" id="authTabs">
+      <button data-mode="signup" class="active">Sign Up</button>
+      <button data-mode="login">Log In</button>
+    </div>
+    <div class="auth-form">
+      <input id="authUsername" type="text" placeholder="Username" autocomplete="username" />
+      <input id="authPassword" type="password" placeholder="Password" autocomplete="new-password" />
+      <input id="authConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
+      <button id="authSubmitBtn">Create account</button>
+      <div class="auth-error" id="authError"></div>
+    </div>
+    <div class="auth-hint">Your username must be unique across everyone using this app.</div>
+  </div>
+</div>
+
+<div class="app" id="mainApp" style="display:none;">
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark">SYSTEM</span>
+      <h1>Streaks</h1>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="user-chip" id="currentUserLabel"></span>
+      <button class="theme-btn" id="logoutBtn" title="Log out">⏻</button>
+      <button class="theme-btn" id="themeBtn" title="Toggle theme">🌙</button>
+    </div>
+  </div>
+
+  <div class="tabs-main">
+    <button class="nav-tab active" data-view="home">Home</button>
+    <button class="nav-tab" data-view="week">Week</button>
+    <button class="nav-tab" data-view="subs">Subs</button>
+    <button class="nav-tab" data-view="report">Report</button>
+  </div>
+
+  <div class="sidebar">
+    <button class="side-btn nav-tab" data-view="calendar">📅<span>Calendar</span></button>
+    <button class="side-btn nav-tab" data-view="subjects">📚<span>Subjects</span></button>
+  </div>
+
+  <!-- HOME -->
+  <div class="view active" id="view-home">
+    <div class="status-panel">
+      <div class="status-top">
+        <div>
+          <div class="status-tag">Player Status</div>
+          <div class="level-line">
+            <span class="level-num" id="levelNum">1</span>
+            <span class="level-label">LEVEL</span>
+          </div>
+        </div>
+        <div class="rank-badge" id="rankBadge">E</div>
+      </div>
+      <div class="xp-track"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+      <div class="xp-label"><span id="xpCurrent">0 XP</span><span id="xpNeeded">to next level</span></div>
+    </div>
+
+    <div class="next-up-banner" id="nextUpBanner" style="display:none;">
+      <span class="next-up-tag" id="nextUpTag"></span>
+      <div class="next-up-body">
+        <div class="next-up-title" id="nextUpTitle"></div>
+        <div class="next-up-meta" id="nextUpMeta"></div>
+      </div>
+      <span class="next-up-arrow">›</span>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat-box"><div class="num" id="statToday">0</div><div class="lbl">Today</div></div>
+      <div class="stat-box"><div class="num" id="statBestStreak">0</div><div class="lbl">Best streak</div></div>
+      <div class="stat-box"><div class="num" id="statTotal">0</div><div class="lbl">Total XP</div></div>
+    </div>
+
+    <div class="section-label">Daily Quests</div>
+    <div id="questList"></div>
+
+    <div class="add-row">
+      <input id="newHabit" type="text" placeholder="Add a new quest…" />
+      <input id="newHabitDeadline" type="date" title="Optional deadline" style="flex:0 0 130px;" />
+      <button id="addBtn">Add</button>
+    </div>
+
+    <div class="section-label">Subjects</div>
+    <div id="homeSubjects"></div>
+  </div>
+
+  <!-- WEEK -->
+  <div class="view" id="view-week">
+    <div class="header">
+      <span class="range" id="rangeLabel" style="margin:0;"></span>
+      <div class="nav">
+        <button id="prevWeek">‹</button>
+        <button id="thisWeek">Today</button>
+        <button id="nextWeek">›</button>
+      </div>
+    </div>
+    <div id="gridWrap"></div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div class="view" id="view-calendar">
+    <div class="cal-header">
+      <span class="range mono" id="calMonthLabel" style="margin:0;"></span>
+      <div class="nav">
+        <button id="prevMonth">‹</button>
+        <button id="thisMonth">Today</button>
+        <button id="nextMonth">›</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+
+    <div class="selected-day-bar">
+      <span id="selectedDayLabel">—</span>
+      <button class="expand-btn" id="expandDayBtn">⤢ View day</button>
+    </div>
+
+    <div class="section-label">Add to schedule</div>
+    <div class="cal-form">
+      <div class="cal-form-row">
+        <input id="evtTitle" type="text" placeholder="e.g. Chemistry homework due" />
+      </div>
+      <div class="cal-form-row">
+        <input id="evtDate" type="date" />
+        <input id="evtTime" type="time" />
+      </div>
+      <div class="cal-form-row">
+        <select id="evtType">
+          <option value="homework">📘 Homework</option>
+          <option value="deadline">⏰ Deadline</option>
+          <option value="test">📝 Test</option>
+          <option value="study">📖 Study session</option>
+          <option value="other">📌 Other</option>
+        </select>
+        <select id="evtRemind">
+          <option value="0">No reminder</option>
+          <option value="30">30 min before</option>
+          <option value="60" selected>1 hour before</option>
+          <option value="1440">1 day before</option>
+          <option value="2880">2 days before</option>
+        </select>
+      </div>
+      <button id="addEvtBtn">Add to schedule</button>
+    </div>
+
+    <div class="section-label">Upcoming</div>
+    <div id="evtList"></div>
+  </div>
+
+  <!-- SUBJECTS -->
+  <div class="view" id="view-subjects">
+    <div class="section-label">Add a subject</div>
+    <div class="new-subject-form" style="margin-bottom:20px;">
+      <input id="newSubject" type="text" placeholder="e.g. Chemistry" />
+      <button id="addSubjectBtn">Add</button>
+    </div>
+    <div id="subjectList"></div>
+  </div>
+
+  <!-- SUBS -->
+  <div class="view" id="view-subs">
+    <div class="sub-total-panel">
+      <div>
+        <div class="sub-total-label">Monthly spend</div>
+        <div class="sub-total-amount" id="subTotalMonthly">$0.00</div>
+        <div class="sub-total-sub" id="subCountLabel">0 subscriptions</div>
+        <button class="sub-check-btn" id="convertTotalBtn" style="margin-top:6px;">🌐 Convert</button>
+      </div>
+      <div class="sub-total-yearly">≈ <b id="subTotalYearly">$0.00</b><br>per year</div>
+    </div>
+
+    <div id="reviewBanner"></div>
+
+    <div class="new-sub-form">
+      <div class="new-sub-row"><input id="newSubName" type="text" placeholder="e.g. Netflix" /></div>
+      <div class="new-sub-row">
+        <input id="newSubPrice" type="number" step="0.01" placeholder="Price (e.g. 9.99)" />
+        <select id="newSubCycle">
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
+      <div class="sub-price-hint" id="subPriceHint" style="display:none;"></div>
+      <button id="addSubBtn">Add subscription</button>
+    </div>
+
+    <div id="subList"></div>
+  </div>
+
+  <!-- REPORT -->
+  <div class="view" id="view-report">
+    <div class="report-header">
+      <h2>Progress report</h2>
+      <div class="rtabs">
+        <button data-period="week" class="active">Week</button>
+        <button data-period="month">Month</button>
+        <button data-period="year">Year</button>
+      </div>
+    </div>
+    <div class="report-summary" id="reportSummary"></div>
+    <div id="reportBars"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Currency conversion -->
+<div class="day-modal-overlay" id="fxModalOverlay">
+  <div class="day-modal">
+    <div class="day-modal-header">
+      <h2 id="fxModalTitle">Convert</h2>
+      <button class="day-modal-close" id="fxModalClose">×</button>
+    </div>
+    <div class="day-modal-sub" id="fxModalSub">Static reference rates — not live. Confirm before relying on these.</div>
+    <div class="add-row" style="margin: 0 0 14px;">
+      <input id="fxSearch" type="text" placeholder="Filter currencies (e.g. EUR, Euro)" />
+    </div>
+    <div class="timeline" id="fxList" style="max-height: 400px;"></div>
+  </div>
+</div>
+
+<!-- Full-screen day view -->
+<div class="day-modal-overlay" id="dayModalOverlay">
+  <div class="day-modal">
+    <div class="day-modal-header">
+      <h2 id="dayModalTitle">Day</h2>
+      <button class="day-modal-close" id="dayModalClose">×</button>
+    </div>
+    <div class="day-modal-sub" id="dayModalSub"></div>
+    <div class="timeline" id="dayTimeline"></div>
+    <div class="day-add-form">
+      <div class="day-add-row"><input id="dayEvtTitle" type="text" placeholder="e.g. Study session — Physics" /></div>
+      <div class="day-add-row">
+        <input id="dayEvtStart" type="time" />
+        <input id="dayEvtEnd" type="time" placeholder="end (optional)" />
+      </div>
+      <div class="day-add-row">
+        <select id="dayEvtType">
+          <option value="study">📖 Study session</option>
+          <option value="homework">📘 Homework</option>
+          <option value="deadline">⏰ Deadline</option>
+          <option value="test">📝 Test</option>
+          <option value="other">📌 Other</option>
+        </select>
+        <select id="dayEvtRemind">
+          <option value="0">No reminder</option>
+          <option value="30" selected>30 min before</option>
+          <option value="60">1 hour before</option>
+        </select>
+      </div>
+      <button id="dayAddBtn">Add to this day</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const XP_PER_CHECK = 10;
+const XP_PENALTY = 15;
+const XP_DEADLINE_PENALTY = 15;
+function toKey(d) { return d.toISOString().slice(0,10); }
+function startOfWeek(d) {
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diff);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+let habits = [];
+let events = [];
+let subjects = [];
+let subs = [];
+let weekStart = startOfWeek(new Date());
+let calMonth = new Date(); calMonth.setDate(1); calMonth.setHours(0,0,0,0);
+let selectedCalDate = toKey(new Date());
+let reportPeriod = 'week';
+const todayKey = toKey(new Date());
+const dayLabels = ['M','T','W','T','F','S','S'];
+const typeIcons = { homework: '📘', deadline: '⏰', test: '📝', study: '📖', other: '📌' };
+
+async function load() {
+  try { const res = await window.storage.get('habits'); habits = res ? JSON.parse(res.value) : []; } catch (e) { habits = []; }
+  let habitsMigrated = false;
+  habits.forEach(h => { if (!h.id) { h.id = uid(); habitsMigrated = true; } if (h.deadline === undefined) { h.deadline = null; habitsMigrated = true; } });
+  if (habitsMigrated) save();
+  try { const res = await window.storage.get('events'); events = res ? JSON.parse(res.value) : []; } catch (e) { events = []; }
+  try { const res = await window.storage.get('subjects'); subjects = res ? JSON.parse(res.value) : []; } catch (e) { subjects = []; }
+  try { const res = await window.storage.get('subs'); subs = res ? JSON.parse(res.value) : []; } catch (e) { subs = []; }
+  try { const t = await window.storage.get('theme'); if (t && t.value === 'light') setTheme('light', false); } catch (e) {}
+  document.getElementById('evtDate').value = todayKey;
+  renderAll();
+  startReminderLoop();
+}
+async function save() { try { await window.storage.set('habits', JSON.stringify(habits)); } catch (e) {} }
+async function saveEvents() { try { await window.storage.set('events', JSON.stringify(events)); } catch (e) {} }
+async function saveSubjects() { try { await window.storage.set('subjects', JSON.stringify(subjects)); } catch (e) {} }
+async function saveSubs() { try { await window.storage.set('subs', JSON.stringify(subs)); } catch (e) {} }
+async function saveTheme(theme) { try { await window.storage.set('theme', theme); } catch (e) {} }
+
+function setTheme(theme, persist = true) {
+  document.body.classList.toggle('light', theme === 'light');
+  document.getElementById('themeBtn').textContent = theme === 'light' ? '☀️' : '🌙';
+  if (persist) saveTheme(theme);
+}
+document.getElementById('themeBtn').addEventListener('click', () => {
+  setTheme(document.body.classList.contains('light') ? 'dark' : 'light');
+});
+
+// ---- Tab nav ----
+function switchToView(view) {
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  if (view === 'report') renderReport();
+  if (view === 'week') renderWeek();
+  if (view === 'calendar') renderCalendar();
+  if (view === 'subjects') renderSubjects();
+  if (view === 'subs') renderSubs();
+}
+document.querySelectorAll('.nav-tab').forEach(btn => {
+  btn.addEventListener('click', () => switchToView(btn.dataset.view));
+});
+
+function streakFor(h) {
+  let count = 0; let d = new Date();
+  if (!h.log[todayKey]) d.setDate(d.getDate() - 1);
+  while (true) { const key = toKey(d); if (h.log[key]) { count++; d.setDate(d.getDate() - 1); } else break; }
+  return count;
+}
+function bestStreakFor(h) {
+  const keys = Object.keys(h.log).filter(k => h.log[k]).sort();
+  if (keys.length === 0) return 0;
+  let best = 1, cur = 1;
+  for (let i = 1; i < keys.length; i++) {
+    const diffDays = Math.round((new Date(keys[i]) - new Date(keys[i-1])) / 86400000);
+    if (diffDays === 1) { cur++; best = Math.max(best, cur); } else cur = 1;
+  }
+  return best;
+}
+function totalCompletions() {
+  let n = 0; habits.forEach(h => { n += Object.values(h.log).filter(Boolean).length; }); return n;
+}
+function levelFromXP(xp) {
+  let level = 1, remaining = xp;
+  while (remaining >= level * 100) { remaining -= level * 100; level++; }
+  return { level, current: remaining, needed: level * 100 };
+}
+function rankFromLevel(level) {
+  if (level < 5) return 'E'; if (level < 10) return 'D'; if (level < 20) return 'C';
+  if (level < 35) return 'B'; if (level < 50) return 'A'; return 'S';
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function daysUntilLabel(dateStr) {
+  const target = new Date(dateStr); target.setHours(0,0,0,0);
+  const now = new Date(); now.setHours(0,0,0,0);
+  const diffDays = Math.round((target - now) / 86400000);
+  if (diffDays < 0) return { text: `${Math.abs(diffDays)}d overdue`, cls: 'overdue' };
+  if (diffDays === 0) return { text: 'Today', cls: 'soon' };
+  if (diffDays === 1) return { text: 'Tomorrow', cls: 'soon' };
+  if (diffDays <= 3) return { text: `${diffDays}d away`, cls: 'soon' };
+  return { text: `${diffDays}d away`, cls: '' };
+}
+function subjectDueItems(subject) {
+  const items = [];
+  if (subject.examDate) items.push({ label: `${subject.name} exam`, date: subject.examDate, type: 'test' });
+  subject.homework.forEach(hw => { if (hw.dueDate) items.push({ label: `${subject.name}: ${hw.title}`, date: hw.dueDate, type: 'homework' }); });
+  return items;
+}
+function nextSubjectItem() {
+  let all = [];
+  subjects.forEach(s => all = all.concat(subjectDueItems(s)));
+  if (all.length === 0) return null;
+  all.sort((a, b) => new Date(a.date) - new Date(b.date));
+  return all[0];
+}
+function renderNextUp() {
+  const banner = document.getElementById('nextUpBanner');
+  const next = nextSubjectItem();
+  if (!next) { banner.style.display = 'none'; return; }
+  banner.style.display = 'flex';
+  document.getElementById('nextUpTag').className = `next-up-tag evt-${next.type}`;
+  document.getElementById('nextUpTitle').textContent = `${typeIcons[next.type] || ''} ${next.label}`;
+  const dl = daysUntilLabel(next.date);
+  const meta = document.getElementById('nextUpMeta');
+  meta.textContent = dl.text; meta.className = `next-up-meta ${dl.cls}`;
+}
+document.getElementById('nextUpBanner').addEventListener('click', () => switchToView('subjects'));
+
+function renderHomeSubjects() {
+  const wrap = document.getElementById('homeSubjects');
+  if (subjects.length === 0) { wrap.innerHTML = '<div class="empty">No subjects yet — add one in the Subjects tab.</div>'; return; }
+  let html = '';
+  subjects.forEach(s => {
+    const total = s.portions.length;
+    const done = s.portions.filter(p => p.done).length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    const due = subjectDueItems(s).sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+    const dueLabel = due ? daysUntilLabel(due.date) : null;
+    html += `<div class="subject-mini" data-sid="${s.id}">
+      <div class="subject-mini-top">
+        <span class="subject-mini-name">${s.name}</span>
+        ${dueLabel ? `<span class="subject-mini-due ${dueLabel.cls}">${dueLabel.text}</span>` : ''}
+      </div>
+      <div class="subject-mini-progress"><div class="bar-track"><div class="bar-fill" style="width:${pct}%; background: linear-gradient(90deg, var(--study), var(--accent-soft));"></div></div><span class="pct">${pct}%</span></div>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+}
+document.getElementById('homeSubjects').addEventListener('click', () => switchToView('subjects'));
+
+function renderAll() { renderHome(); renderWeek(); renderCalendar(); renderSubjects(); renderReport(); }
+
+function checkDeadlinePenalties() {
+  let changed = false;
+  const missedNow = [];
+  habits.forEach(h => {
+    if (h.deadline && !h.deadlinePenalized && todayKey > h.deadline && !h.log[h.deadline]) {
+      h.deadlinePenalized = true;
+      changed = true;
+      missedNow.push(h.name);
+    }
+  });
+  if (changed) {
+    save();
+    missedNow.forEach(name => showToast(`💀 Missed deadline: ${name} — −${XP_PENALTY} XP`));
+  }
+  return habits.filter(h => h.deadlinePenalized).length * XP_PENALTY;
+}
+
+// ---- HOME ----
+function renderHome(animateHi) {
+  renderNextUp();
+  renderHomeSubjects();
+  const totalPenalty = checkDeadlinePenalties();
+  const totalXP = Math.max(0, totalCompletions() * XP_PER_CHECK - totalPenalty);
+  const { level, current, needed } = levelFromXP(totalXP);
+  document.getElementById('levelNum').textContent = level;
+  document.getElementById('rankBadge').textContent = rankFromLevel(level);
+  document.getElementById('xpFill').style.width = needed ? Math.round((current / needed) * 100) + '%' : '0%';
+  document.getElementById('xpCurrent').textContent = `${current} / ${needed} XP`;
+  const doneToday = habits.filter(h => h.log[todayKey]).length;
+  document.getElementById('statToday').textContent = `${doneToday}/${habits.length}`;
+  document.getElementById('statBestStreak').textContent = habits.length ? Math.max(...habits.map(bestStreakFor)) : 0;
+  document.getElementById('statTotal').textContent = totalXP;
+
+  const list = document.getElementById('questList');
+  if (habits.length === 0) { list.innerHTML = '<div class="empty">No quests yet. Add one below to start earning XP 🔥</div>'; return; }
+  let html = '';
+  habits.forEach((h, hi) => {
+    const done = !!h.log[todayKey]; const streak = streakFor(h);
+    const dl = h.deadline ? daysUntilLabel(h.deadline) : null;
+    const dlLabel = h.deadlinePenalized ? `Missed · −${XP_PENALTY}xp` : (dl ? dl.text : '');
+    html += `<div class="quest-wrap">
+      <div class="quest ${done ? 'done' : ''} ${animateHi == hi ? 'pop' : ''}">
+        <div class="quest-check ${done ? 'done' : ''}" data-hi="${hi}">${done ? '✓' : ''}</div>
+        <div class="quest-name">${h.name}</div>
+        ${streak > 0 ? `<div class="quest-streak">🔥${streak}</div>` : ''}
+        <div class="quest-xp">+${XP_PER_CHECK}xp</div>
+        ${dl ? `<span class="quest-deadline ${dl.cls}" data-action="toggle-deadline" data-hi="${hi}">⏳ ${dlLabel}</span>`
+             : `<button class="quest-deadline-btn" data-action="toggle-deadline" data-hi="${hi}">+ Deadline</button>`}
+        <button class="quest-del" data-hi="${hi}">×</button>
+      </div>
+      <div class="quest-edit-row" data-hi="${hi}">
+        <input type="date" class="quest-deadline-input" value="${h.deadline || ''}" />
+        <button data-action="save-deadline" data-hi="${hi}">Set</button>
+        ${h.deadline ? `<button class="clear-btn" data-action="clear-deadline" data-hi="${hi}">Clear</button>` : ''}
+      </div>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+document.getElementById('questList').addEventListener('click', (e) => {
+  const hi = e.target.dataset.hi; if (hi === undefined) return;
+  const action = e.target.dataset.action;
+  if (e.target.classList.contains('quest-check')) {
+    const h = habits[hi]; const wasDone = !!h.log[todayKey];
+    if (wasDone) delete h.log[todayKey]; else h.log[todayKey] = true;
+    save(); renderAll(); if (!wasDone) showToast(`+${XP_PER_CHECK} XP`);
+  } else if (e.target.classList.contains('quest-del')) {
+    const h = habits[hi];
+    events = events.filter(ev => ev.id !== `quest-${h.id}`); saveEvents();
+    habits.splice(hi, 1); save(); renderAll();
+  } else if (action === 'toggle-deadline') {
+    const row = document.querySelector(`.quest-edit-row[data-hi="${hi}"]`);
+    row.classList.toggle('open');
+    if (row.classList.contains('open')) row.querySelector('.quest-deadline-input').focus();
+  } else if (action === 'save-deadline') {
+    const row = document.querySelector(`.quest-edit-row[data-hi="${hi}"]`);
+    const val = row.querySelector('.quest-deadline-input').value;
+    const h = habits[hi]; h.deadline = val || null; h.deadlinePenalized = false;
+    save(); syncQuestDeadline(h); renderAll(); showToast(val ? 'Deadline set' : 'Deadline cleared');
+  } else if (action === 'clear-deadline') {
+    const h = habits[hi]; h.deadline = null; h.deadlinePenalized = false;
+    save(); syncQuestDeadline(h); renderAll(); showToast('Deadline cleared');
+  }
+});
+function addHabit() {
+  const input = document.getElementById('newHabit'); const name = input.value.trim(); if (!name) return;
+  const deadlineInput = document.getElementById('newHabitDeadline');
+  const deadline = deadlineInput.value || null;
+  const habit = { id: uid(), name, log: {}, deadline };
+  habits.push(habit);
+  input.value = ''; deadlineInput.value = '';
+  save();
+  if (deadline) syncQuestDeadline(habit);
+  renderAll();
+}
+document.getElementById('addBtn').addEventListener('click', addHabit);
+document.getElementById('newHabit').addEventListener('keydown', (e) => { if (e.key === 'Enter') addHabit(); });
+
+// ---- WEEK ----
+function weekDates() { const dates = []; for (let i = 0; i < 7; i++) { const d = new Date(weekStart); d.setDate(weekStart.getDate() + i); dates.push(d); } return dates; }
+function renderWeek(animateKey) {
+  const dates = weekDates();
+  const opts = { month: 'short', day: 'numeric' };
+  document.getElementById('rangeLabel').textContent = dates[0].toLocaleDateString(undefined, opts) + ' – ' + dates[6].toLocaleDateString(undefined, opts);
+  const wrap = document.getElementById('gridWrap');
+  if (habits.length === 0) { wrap.innerHTML = '<div class="empty">No quests yet.</div>'; return; }
+  let headerHtml = '<div class="day-header"><span></span>';
+  dates.forEach((d, i) => { const key = toKey(d); headerHtml += `<span class="${key === todayKey ? 'today' : ''}">${dayLabels[i]}</span>`; });
+  headerHtml += '<span></span><span></span></div>';
+  let rowsHtml = '';
+  habits.forEach((h, hi) => {
+    rowsHtml += `<div class="habit-row"><div class="habit-name">${h.name}</div>`;
+    dates.forEach((d) => {
+      const key = toKey(d); const done = !!h.log[key];
+      const isFuture = d > new Date() && key !== todayKey; const isToday = key === todayKey;
+      const justToggled = animateKey && animateKey.h == hi && animateKey.key === key;
+      rowsHtml += `<span class="dot ${done ? 'done' : ''} ${isFuture ? 'future' : ''} ${isToday && !done ? 'today-outline' : ''} ${justToggled ? 'pop' : ''}" data-h="${hi}" data-key="${key}" data-future="${isFuture}">${done ? '✓' : ''}</span>`;
+    });
+    const streak = streakFor(h);
+    rowsHtml += `<div class="streak ${streak === 0 ? 'zero' : ''}">${streak > 0 ? '🔥' : ''}${streak}</div>`;
+    rowsHtml += `<button class="del" data-hi="${hi}">×</button></div>`;
+  });
+  wrap.innerHTML = headerHtml + rowsHtml;
+}
+document.getElementById('gridWrap').addEventListener('click', (e) => {
+  if (e.target.classList.contains('dot')) {
+    if (e.target.dataset.future === 'true') return;
+    const hi = e.target.dataset.h, key = e.target.dataset.key; const h = habits[hi];
+    const wasDone = !!h.log[key]; if (wasDone) delete h.log[key]; else h.log[key] = true;
+    save(); renderAll(); renderWeek({ h: hi, key });
+    if (!wasDone && key === todayKey) showToast(`+${XP_PER_CHECK} XP`);
+  } else if (e.target.classList.contains('del')) { habits.splice(e.target.dataset.hi, 1); save(); renderAll(); }
+});
+document.getElementById('prevWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() - 7); renderWeek(); });
+document.getElementById('nextWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() + 7); renderWeek(); });
+document.getElementById('thisWeek').addEventListener('click', () => { weekStart = startOfWeek(new Date()); renderWeek(); });
+
+// ---- Shared event helpers ----
+function eventDateTime(ev) { return new Date(`${ev.date}T${ev.time || '23:59'}:00`); }
+function upsertEvent(ev) {
+  const idx = events.findIndex(e => e.id === ev.id);
+  if (idx >= 0) events[idx] = { ...events[idx], ...ev, notified: false };
+  else events.push({ notified: false, endTime: null, remindBefore: 0, ...ev });
+  saveEvents();
+}
+async function ensureNotifyPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  try { const perm = await Notification.requestPermission(); return perm === 'granted'; } catch (e) { return false; }
+}
+
+// ---- CALENDAR ----
+function eventsOn(dateKey) { return events.filter(e => e.date === dateKey); }
+function renderCalendar() {
+  const opts = { month: 'long', year: 'numeric' };
+  document.getElementById('calMonthLabel').textContent = calMonth.toLocaleDateString(undefined, opts);
+  const firstDay = new Date(calMonth);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const gridStart = new Date(firstDay); gridStart.setDate(firstDay.getDate() - startOffset);
+
+  let html = '';
+  ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => html += `<div class="cal-dow">${d}</div>`);
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
+    const key = toKey(d);
+    const outside = d.getMonth() !== calMonth.getMonth();
+    const isToday = key === todayKey; const isSelected = key === selectedCalDate;
+    let dots = ''; eventsOn(key).slice(0, 4).forEach(ev => dots += `<span class="cal-dot evt-${ev.type}"></span>`);
+    html += `<div class="cal-cell ${outside ? 'outside' : ''} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-key="${key}">
+      <span class="cal-daynum">${d.getDate()}</span><div class="cal-dots">${dots}</div></div>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+
+  const sel = new Date(selectedCalDate);
+  document.getElementById('selectedDayLabel').textContent = sel.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  renderEventList();
+}
+document.getElementById('calGrid').addEventListener('click', (e) => {
+  const cell = e.target.closest('.cal-cell'); if (!cell) return;
+  selectedCalDate = cell.dataset.key;
+  document.getElementById('evtDate').value = selectedCalDate;
+  renderCalendar();
+});
+document.getElementById('prevMonth').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() - 1); renderCalendar(); });
+document.getElementById('nextMonth').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() + 1); renderCalendar(); });
+document.getElementById('thisMonth').addEventListener('click', () => {
+  calMonth = new Date(); calMonth.setDate(1); calMonth.setHours(0,0,0,0);
+  selectedCalDate = todayKey; renderCalendar();
+});
+
+document.getElementById('addEvtBtn').addEventListener('click', async () => {
+  const title = document.getElementById('evtTitle').value.trim();
+  const date = document.getElementById('evtDate').value;
+  const time = document.getElementById('evtTime').value;
+  const type = document.getElementById('evtType').value;
+  const remind = parseInt(document.getElementById('evtRemind').value, 10);
+  if (!title || !date) { showToast('Add a title and date'); return; }
+  if (remind > 0) await ensureNotifyPermission();
+  upsertEvent({ id: uid(), title, date, time: time || null, type, remindBefore: remind });
+  document.getElementById('evtTitle').value = ''; document.getElementById('evtTime').value = '';
+  selectedCalDate = date; renderCalendar(); showToast('Added to schedule');
+});
+
+function formatEventMeta(ev) {
+  const dt = eventDateTime(ev); const now = new Date(); const diffMs = dt - now; const diffH = diffMs / 3600000;
+  const dateLabel = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const timeLabel = ev.time ? dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
+  let status = '', cls = '';
+  if (diffMs < 0) { status = 'Overdue'; cls = 'overdue'; } else if (diffH <= 24) { status = 'Due soon'; cls = 'soon'; }
+  return { label: `${dateLabel}${timeLabel ? ', ' + timeLabel : ''}`, status, cls };
+}
+function renderEventList() {
+  const list = document.getElementById('evtList');
+  const upcoming = [...events].sort((a, b) => eventDateTime(a) - eventDateTime(b));
+  if (upcoming.length === 0) { list.innerHTML = '<div class="empty">Nothing scheduled. Add homework, a deadline, or a test above.</div>'; return; }
+  let html = '';
+  upcoming.forEach(ev => {
+    const meta = formatEventMeta(ev);
+    html += `<div class="evt-item"><span class="evt-tag evt-${ev.type}"></span>
+      <div class="evt-info"><div class="evt-title">${typeIcons[ev.type] || ''} ${ev.title}</div>
+      <div class="evt-meta ${meta.cls}">${meta.label}${meta.status ? ' · ' + meta.status : ''}${ev.remindBefore > 0 ? ' · 🔔' : ''}</div></div>
+      <button class="evt-del" data-id="${ev.id}">×</button></div>`;
+  });
+  list.innerHTML = html;
+}
+document.getElementById('evtList').addEventListener('click', (e) => {
+  if (e.target.classList.contains('evt-del')) { events = events.filter(ev => ev.id !== e.target.dataset.id); saveEvents(); renderCalendar(); }
+});
+
+function startReminderLoop() { checkReminders(); setInterval(checkReminders, 30000); }
+function checkReminders() {
+  const now = new Date(); let changed = false;
+  events.forEach(ev => {
+    if (ev.notified || !ev.remindBefore) return;
+    const dt = eventDateTime(ev); const remindAt = new Date(dt.getTime() - ev.remindBefore * 60000);
+    if (now >= remindAt && now <= dt) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try { new Notification('Reminder', { body: `${ev.title} (${ev.type})` }); } catch (e) {}
+      }
+      showToast(`${typeIcons[ev.type] || ''} ${ev.title} — coming up`);
+      ev.notified = true; changed = true;
+    }
+  });
+  if (changed) saveEvents();
+}
+
+// ---- Full-screen day modal ----
+let dayModalDate = todayKey;
+function openDayModal(dateKey) {
+  dayModalDate = dateKey;
+  const d = new Date(dateKey);
+  document.getElementById('dayModalTitle').textContent = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const dayEvents = eventsOn(dateKey);
+  document.getElementById('dayModalSub').textContent = dayEvents.length ? `${dayEvents.length} item${dayEvents.length > 1 ? 's' : ''} scheduled` : 'Nothing scheduled yet';
+  renderDayTimeline();
+  document.getElementById('dayModalOverlay').classList.add('open');
+}
+function closeDayModal() { document.getElementById('dayModalOverlay').classList.remove('open'); }
+document.getElementById('expandDayBtn').addEventListener('click', () => openDayModal(selectedCalDate));
+document.getElementById('dayModalClose').addEventListener('click', closeDayModal);
+document.getElementById('dayModalOverlay').addEventListener('click', (e) => { if (e.target.id === 'dayModalOverlay') closeDayModal(); });
+
+function hourLabel(h) { return `${h}:00`; }
+function itemChip(ev) {
+  const timeLabel = ev.time ? (ev.endTime ? `${ev.time}–${ev.endTime}` : ev.time) : '';
+  return `<div class="timeline-item">
+    <div class="timeline-bar evt-${ev.type}"></div>
+    <div class="timeline-body">
+      <div class="timeline-title">${typeIcons[ev.type] || ''} ${ev.title}${timeLabel ? ` <span class="timeline-tag">${timeLabel}</span>` : ''}</div>
+      <div class="timeline-tag">${ev.type}</div>
+    </div>
+    <button class="timeline-del" data-id="${ev.id}">×</button>
+  </div>`;
+}
+function renderDayTimeline() {
+  const items = eventsOn(dayModalDate);
+  const allDay = items.filter(ev => !ev.time);
+  const timed = items.filter(ev => !!ev.time);
+  const wrap = document.getElementById('dayTimeline');
+  const nowHour = (dayModalDate === todayKey) ? new Date().getHours() : -1;
+
+  let html = '';
+  if (allDay.length) {
+    html += `<div class="allday-section"><div class="allday-label">All day</div>${allDay.map(itemChip).join('')}</div>`;
+  }
+  for (let h = 0; h < 24; h++) {
+    const hourItems = timed.filter(ev => parseInt(ev.time.split(':')[0], 10) === h);
+    const isEmpty = hourItems.length === 0;
+    html += `<div class="hour-row ${h === nowHour ? 'current-hour' : ''}">
+      <div class="hour-label">${hourLabel(h)}</div>
+      <div class="hour-content ${isEmpty ? 'empty' : ''}" data-hour="${h}">
+        ${hourItems.map(itemChip).join('')}
+      </div>
+    </div>`;
+  }
+  wrap.innerHTML = html;
+
+  const scrollTarget = wrap.querySelector('.current-hour') || wrap.querySelectorAll('.hour-row')[8];
+  if (scrollTarget) scrollTarget.scrollIntoView({ block: 'center' });
+}
+document.getElementById('dayTimeline').addEventListener('click', (e) => {
+  const emptySlot = e.target.closest('.hour-content.empty');
+  if (emptySlot && !e.target.classList.contains('timeline-del')) {
+    const h = emptySlot.dataset.hour;
+    document.getElementById('dayEvtStart').value = `${h.padStart(2,'0')}:00`;
+    document.getElementById('dayEvtTitle').focus();
+  }
+});
+document.getElementById('dayTimeline').addEventListener('click', (e) => {
+  if (e.target.classList.contains('timeline-del')) {
+    events = events.filter(ev => ev.id !== e.target.dataset.id);
+    saveEvents(); renderDayTimeline(); renderCalendar();
+  }
+});
+document.getElementById('dayAddBtn').addEventListener('click', async () => {
+  const title = document.getElementById('dayEvtTitle').value.trim();
+  const start = document.getElementById('dayEvtStart').value;
+  const end = document.getElementById('dayEvtEnd').value;
+  const type = document.getElementById('dayEvtType').value;
+  const remind = parseInt(document.getElementById('dayEvtRemind').value, 10);
+  if (!title) { showToast('Add a title'); return; }
+  if (remind > 0) await ensureNotifyPermission();
+  upsertEvent({ id: uid(), title, date: dayModalDate, time: start || null, endTime: end || null, type, remindBefore: remind });
+  document.getElementById('dayEvtTitle').value = ''; document.getElementById('dayEvtStart').value = ''; document.getElementById('dayEvtEnd').value = '';
+  renderDayTimeline(); renderCalendar(); showToast('Added to this day');
+});
+
+// ---- SUBJECTS / portion tracker ----
+document.getElementById('addSubjectBtn').addEventListener('click', () => {
+  const input = document.getElementById('newSubject'); const name = input.value.trim(); if (!name) return;
+  subjects.push({ id: uid(), name, examDate: '', portions: [], homework: [] });
+  input.value = ''; saveSubjects(); renderSubjects(); renderHome();
+});
+document.getElementById('newSubject').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('addSubjectBtn').click(); });
+
+function syncQuestDeadline(habit) {
+  const evId = `quest-${habit.id}`;
+  if (habit.deadline) {
+    upsertEvent({ id: evId, title: `${habit.name} (quest deadline)`, date: habit.deadline, time: null, type: 'deadline', remindBefore: 1440 });
+  } else {
+    events = events.filter(e => e.id !== evId); saveEvents();
+  }
+}
+
+function syncSubjectExam(subject) {
+  const evId = `exam-${subject.id}`;
+  if (subject.examDate) {
+    upsertEvent({ id: evId, title: `${subject.name} exam`, date: subject.examDate, time: null, type: 'test', remindBefore: 1440 });
+  } else {
+    events = events.filter(e => e.id !== evId); saveEvents();
+  }
+}
+function syncSubjectHomework(subject, hw) {
+  const evId = `hw-${subject.id}-${hw.id}`;
+  if (hw.dueDate) {
+    upsertEvent({ id: evId, title: `${subject.name}: ${hw.title}`, date: hw.dueDate, time: null, type: 'homework', remindBefore: 60 });
+  } else {
+    events = events.filter(e => e.id !== evId); saveEvents();
+  }
+}
+
+function renderSubjects() {
+  const wrap = document.getElementById('subjectList');
+  if (subjects.length === 0) { wrap.innerHTML = '<div class="empty">No subjects yet. Add one above to start tracking portions, homework and exam dates.</div>'; return; }
+  let html = '';
+  subjects.forEach((s) => {
+    const total = s.portions.length;
+    const done = s.portions.filter(p => p.done).length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    html += `<div class="subject-card" data-sid="${s.id}">
+      <div class="subject-top">
+        <span class="subject-name">${s.name}</span>
+        <span class="subject-exam">📝 Exam <input type="date" class="exam-date-input" value="${s.examDate || ''}"></span>
+        <button class="subject-del" data-action="del-subject">×</button>
+      </div>
+      <div class="subject-progress"><div class="bar-track"><div class="bar-fill" style="width:${pct}%; background: linear-gradient(90deg, var(--study), var(--accent-soft));"></div></div><span class="pct">${pct}%</span></div>
+
+      <div class="portion-list">
+        ${s.portions.map(p => `
+          <div class="portion-item ${p.done ? 'done' : ''}">
+            <div class="portion-check ${p.done ? 'done' : ''}" data-action="toggle-portion" data-pid="${p.id}">${p.done ? '✓' : ''}</div>
+            <span class="portion-name">${p.name}</span>
+            <button class="mini-del" data-action="del-portion" data-pid="${p.id}">×</button>
+          </div>`).join('')}
+      </div>
+      <div class="mini-add-row">
+        <input type="text" class="new-portion-input" placeholder="Add a portion / topic…" />
+        <button data-action="add-portion">Add</button>
+      </div>
+
+      <div class="subject-subhead">Homework</div>
+      ${s.homework.map(hw => `
+        <div class="hw-item">
+          <span class="hw-name">${hw.title}</span>
+          <span class="hw-date">${hw.dueDate || 'no date'}</span>
+          <button class="mini-del" data-action="del-hw" data-hwid="${hw.id}">×</button>
+        </div>`).join('')}
+      <div class="mini-add-row">
+        <input type="text" class="new-hw-title" placeholder="Homework title…" />
+        <input type="date" class="new-hw-date" style="flex:0 0 130px;" />
+        <button data-action="add-hw">Add</button>
+      </div>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+document.getElementById('subjectList').addEventListener('click', (e) => {
+  const card = e.target.closest('.subject-card'); if (!card) return;
+  const sid = card.dataset.sid; const subject = subjects.find(s => s.id === sid); if (!subject) return;
+  const action = e.target.dataset.action;
+
+  if (action === 'del-subject') {
+    events = events.filter(ev => !ev.id.startsWith(`exam-${sid}`) && !ev.id.startsWith(`hw-${sid}-`));
+    subjects = subjects.filter(s => s.id !== sid);
+    saveEvents(); saveSubjects(); renderSubjects(); renderCalendar(); renderHome();
+  } else if (action === 'toggle-portion') {
+    const p = subject.portions.find(p => p.id === e.target.dataset.pid); p.done = !p.done;
+    saveSubjects(); renderSubjects(); renderHome();
+  } else if (action === 'del-portion') {
+    subject.portions = subject.portions.filter(p => p.id !== e.target.dataset.pid);
+    saveSubjects(); renderSubjects(); renderHome();
+  } else if (action === 'add-portion') {
+    const input = card.querySelector('.new-portion-input'); const name = input.value.trim(); if (!name) return;
+    subject.portions.push({ id: uid(), name, done: false });
+    saveSubjects(); renderSubjects(); renderHome();
+  } else if (action === 'del-hw') {
+    subject.homework = subject.homework.filter(h => h.id !== e.target.dataset.hwid);
+    events = events.filter(ev => ev.id !== `hw-${sid}-${e.target.dataset.hwid}`);
+    saveSubjects(); saveEvents(); renderSubjects(); renderCalendar(); renderHome();
+  } else if (action === 'add-hw') {
+    const title = card.querySelector('.new-hw-title').value.trim();
+    const dueDate = card.querySelector('.new-hw-date').value;
+    if (!title) return;
+    const hw = { id: uid(), title, dueDate };
+    subject.homework.push(hw);
+    syncSubjectHomework(subject, hw);
+    saveSubjects(); renderSubjects(); renderCalendar(); renderHome();
+    showToast('Homework added to calendar');
+  }
+});
+document.getElementById('subjectList').addEventListener('change', (e) => {
+  if (e.target.classList.contains('exam-date-input')) {
+    const card = e.target.closest('.subject-card'); const sid = card.dataset.sid;
+    const subject = subjects.find(s => s.id === sid); if (!subject) return;
+    subject.examDate = e.target.value;
+    syncSubjectExam(subject);
+    saveSubjects(); renderSubjects(); renderCalendar(); renderHome();
+    showToast('Exam date synced to calendar');
+  }
+});
+document.getElementById('subjectList').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  if (e.target.classList.contains('new-portion-input')) { e.target.closest('.subject-card').querySelector('[data-action="add-portion"]').click(); }
+  if (e.target.classList.contains('new-hw-title')) { e.target.closest('.subject-card').querySelector('[data-action="add-hw"]').click(); }
+});
+
+// ---- CURRENCY CONVERSION ----
+// Static reference rates (units of currency per 1 USD). Approximate — not live, for rough reference only.
+const CURRENCY_RATES = {
+  USD: { name: 'US Dollar', rate: 1 },
+  EUR: { name: 'Euro', rate: 0.92 },
+  GBP: { name: 'British Pound', rate: 0.79 },
+  JPY: { name: 'Japanese Yen', rate: 149 },
+  CNY: { name: 'Chinese Yuan', rate: 7.2 },
+  INR: { name: 'Indian Rupee', rate: 83.5 },
+  AUD: { name: 'Australian Dollar', rate: 1.52 },
+  CAD: { name: 'Canadian Dollar', rate: 1.36 },
+  CHF: { name: 'Swiss Franc', rate: 0.88 },
+  HKD: { name: 'Hong Kong Dollar', rate: 7.82 },
+  SGD: { name: 'Singapore Dollar', rate: 1.34 },
+  SEK: { name: 'Swedish Krona', rate: 10.5 },
+  NOK: { name: 'Norwegian Krone', rate: 10.6 },
+  NZD: { name: 'New Zealand Dollar', rate: 1.65 },
+  KRW: { name: 'South Korean Won', rate: 1330 },
+  MXN: { name: 'Mexican Peso', rate: 17.0 },
+  BRL: { name: 'Brazilian Real', rate: 5.4 },
+  ZAR: { name: 'South African Rand', rate: 18.5 },
+  RUB: { name: 'Russian Ruble', rate: 92 },
+  TRY: { name: 'Turkish Lira', rate: 34 },
+  AED: { name: 'UAE Dirham', rate: 3.6725 },
+  SAR: { name: 'Saudi Riyal', rate: 3.75 },
+  ILS: { name: 'Israeli Shekel', rate: 3.7 },
+  PLN: { name: 'Polish Zloty', rate: 4.0 },
+  THB: { name: 'Thai Baht', rate: 35.5 },
+  IDR: { name: 'Indonesian Rupiah', rate: 15700 },
+  MYR: { name: 'Malaysian Ringgit', rate: 4.6 },
+  PHP: { name: 'Philippine Peso', rate: 56.5 },
+  VND: { name: 'Vietnamese Dong', rate: 25200 },
+  PKR: { name: 'Pakistani Rupee', rate: 278 },
+  BDT: { name: 'Bangladeshi Taka', rate: 118 },
+  EGP: { name: 'Egyptian Pound', rate: 48 },
+  NGN: { name: 'Nigerian Naira', rate: 1550 },
+  KES: { name: 'Kenyan Shilling', rate: 129 },
+  GHS: { name: 'Ghanaian Cedi', rate: 15.5 },
+  UAH: { name: 'Ukrainian Hryvnia', rate: 41 },
+  CZK: { name: 'Czech Koruna', rate: 23.5 },
+  HUF: { name: 'Hungarian Forint', rate: 360 },
+  RON: { name: 'Romanian Leu', rate: 4.6 },
+  BGN: { name: 'Bulgarian Lev', rate: 1.8 },
+  DKK: { name: 'Danish Krone', rate: 6.85 },
+  ISK: { name: 'Icelandic Krona', rate: 138 },
+  CLP: { name: 'Chilean Peso', rate: 950 },
+  COP: { name: 'Colombian Peso', rate: 4050 },
+  PEN: { name: 'Peruvian Sol', rate: 3.75 },
+  ARS: { name: 'Argentine Peso', rate: 900 },
+  UYU: { name: 'Uruguayan Peso', rate: 40 },
+  BOB: { name: 'Bolivian Boliviano', rate: 6.9 },
+  PYG: { name: 'Paraguayan Guarani', rate: 7300 },
+  DZD: { name: 'Algerian Dinar', rate: 134 },
+  MAD: { name: 'Moroccan Dirham', rate: 10.0 },
+  TND: { name: 'Tunisian Dinar', rate: 3.1 },
+  KWD: { name: 'Kuwaiti Dinar', rate: 0.307 },
+  BHD: { name: 'Bahraini Dinar', rate: 0.376 },
+  OMR: { name: 'Omani Rial', rate: 0.385 },
+  QAR: { name: 'Qatari Riyal', rate: 3.64 },
+  JOD: { name: 'Jordanian Dinar', rate: 0.709 },
+  LBP: { name: 'Lebanese Pound', rate: 89500 },
+  IQD: { name: 'Iraqi Dinar', rate: 1310 },
+  AFN: { name: 'Afghan Afghani', rate: 70 },
+  LKR: { name: 'Sri Lankan Rupee', rate: 300 },
+  NPR: { name: 'Nepalese Rupee', rate: 133 },
+  MMK: { name: 'Myanmar Kyat', rate: 2100 },
+  KHR: { name: 'Cambodian Riel', rate: 4100 },
+  LAK: { name: 'Lao Kip', rate: 21500 },
+  MNT: { name: 'Mongolian Tugrik', rate: 3450 },
+  KZT: { name: 'Kazakhstani Tenge', rate: 445 },
+  UZS: { name: 'Uzbekistani Som', rate: 12700 },
+  AZN: { name: 'Azerbaijani Manat', rate: 1.7 },
+  GEL: { name: 'Georgian Lari', rate: 2.7 },
+  AMD: { name: 'Armenian Dram', rate: 405 },
+  BYN: { name: 'Belarusian Ruble', rate: 3.3 },
+  RSD: { name: 'Serbian Dinar', rate: 108 },
+  ALL: { name: 'Albanian Lek', rate: 95 },
+  MKD: { name: 'Macedonian Denar', rate: 56.5 },
+  BAM: { name: 'Bosnia-Herzegovina Mark', rate: 1.8 },
+  MDL: { name: 'Moldovan Leu', rate: 17.9 },
+  TWD: { name: 'Taiwan Dollar', rate: 31.5 },
+  BND: { name: 'Brunei Dollar', rate: 1.34 },
+  FJD: { name: 'Fijian Dollar', rate: 2.25 },
+  PGK: { name: 'Papua New Guinean Kina', rate: 3.9 },
+  WST: { name: 'Samoan Tala', rate: 2.7 },
+  TOP: { name: "Tongan Pa'anga", rate: 2.35 },
+  XOF: { name: 'West African CFA Franc', rate: 610 },
+  XAF: { name: 'Central African CFA Franc', rate: 610 },
+  CDF: { name: 'Congolese Franc', rate: 2800 },
+  ZMW: { name: 'Zambian Kwacha', rate: 26 },
+  MWK: { name: 'Malawian Kwacha', rate: 1740 },
+  MZN: { name: 'Mozambican Metical', rate: 64 },
+  AOA: { name: 'Angolan Kwanza', rate: 900 },
+  TZS: { name: 'Tanzanian Shilling', rate: 2600 },
+  UGX: { name: 'Ugandan Shilling', rate: 3750 },
+  RWF: { name: 'Rwandan Franc', rate: 1300 },
+  ETB: { name: 'Ethiopian Birr', rate: 115 },
+  XCD: { name: 'East Caribbean Dollar', rate: 2.70 },
+  BBD: { name: 'Barbadian Dollar', rate: 2.00 },
+  BSD: { name: 'Bahamian Dollar', rate: 1.00 },
+  BZD: { name: 'Belize Dollar', rate: 2.00 },
+  JMD: { name: 'Jamaican Dollar', rate: 156 },
+  TTD: { name: 'Trinidad & Tobago Dollar', rate: 6.8 },
+  DOP: { name: 'Dominican Peso', rate: 59 },
+  GTQ: { name: 'Guatemalan Quetzal', rate: 7.75 },
+  HNL: { name: 'Honduran Lempira', rate: 24.7 },
+  NIO: { name: 'Nicaraguan Cordoba', rate: 36.6 },
+  CRC: { name: 'Costa Rican Colon', rate: 520 },
+  PAB: { name: 'Panamanian Balboa', rate: 1.00 },
+  KGS: { name: 'Kyrgyzstani Som', rate: 87 },
+  TJS: { name: 'Tajikistani Somoni', rate: 10.9 },
+  MUR: { name: 'Mauritian Rupee', rate: 46 },
+  SCR: { name: 'Seychellois Rupee', rate: 13.5 },
+  BTN: { name: 'Bhutanese Ngultrum', rate: 83.5 },
+  MVR: { name: 'Maldivian Rufiyaa', rate: 15.4 },
+};
+
+function openFxModal(amountUSD, label) {
+  document.getElementById('fxModalTitle').textContent = `Convert ${label}`;
+  document.getElementById('fxSearch').value = '';
+  renderFxList(amountUSD, '');
+  document.getElementById('fxModalOverlay').classList.add('open');
+  document.getElementById('fxModalOverlay').dataset.amount = amountUSD;
+}
+function closeFxModal() { document.getElementById('fxModalOverlay').classList.remove('open'); }
+document.getElementById('fxModalClose').addEventListener('click', closeFxModal);
+document.getElementById('fxModalOverlay').addEventListener('click', (e) => { if (e.target.id === 'fxModalOverlay') closeFxModal(); });
+document.getElementById('convertTotalBtn').addEventListener('click', () => {
+  const total = subs.reduce((sum, s) => sum + monthlyEquivalent(s), 0);
+  openFxModal(total, `total monthly spend (${fmtMoney(total)})`);
+});
+document.getElementById('fxSearch').addEventListener('input', (e) => {
+  const amount = parseFloat(document.getElementById('fxModalOverlay').dataset.amount);
+  renderFxList(amount, e.target.value.trim());
+});
+function renderFxList(amountUSD, filter) {
+  const q = filter.toLowerCase();
+  const codes = Object.keys(CURRENCY_RATES).filter(code => {
+    const c = CURRENCY_RATES[code];
+    return !q || code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q);
+  });
+  const wrap = document.getElementById('fxList');
+  if (codes.length === 0) { wrap.innerHTML = '<div class="empty">No matching currency.</div>'; return; }
+  let html = '';
+  codes.forEach(code => {
+    const c = CURRENCY_RATES[code];
+    const value = amountUSD * c.rate;
+    const formatted = value >= 1000 ? Math.round(value).toLocaleString() : value.toFixed(2);
+    html += `<div class="evt-item">
+      <div class="evt-info">
+        <div class="evt-title">${code} <span class="evt-meta" style="font-family:inherit;">${c.name}</span></div>
+      </div>
+      <div class="sub-price">${formatted}</div>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+// ---- SUBSCRIPTIONS ----
+// Rough reference prices (US, standard individual plan) — starting points only, not live data.
+const KNOWN_SUB_PRICES = {
+  'netflix': 19.99,
+  'disney+': 15.99, 'disney plus': 15.99,
+  'hulu': 18.99,
+  'max': 16.99, 'hbo max': 16.99,
+  'amazon prime': 14.99, 'prime video': 14.99,
+  'spotify': 12.99,
+  'apple music': 11.99,
+  'youtube premium': 15.99,
+};
+document.getElementById('newSubName').addEventListener('input', (e) => {
+  const key = e.target.value.trim().toLowerCase();
+  const hint = document.getElementById('subPriceHint');
+  const priceInput = document.getElementById('newSubPrice');
+  const known = KNOWN_SUB_PRICES[key];
+  if (known !== undefined) {
+    if (!priceInput.value) priceInput.value = known;
+    hint.textContent = `Estimated ${e.target.value.trim()} price: ${fmtMoney(known)} — confirm or adjust`;
+    hint.style.display = 'block';
+  } else {
+    hint.style.display = 'none';
+  }
+});
+function monthKey(dateStr) { return dateStr ? dateStr.slice(0, 7) : ''; }
+function subNeedsReview(s) { return monthKey(s.lastChecked) !== monthKey(todayKey); }
+function monthlyEquivalent(s) { return s.cycle === 'yearly' ? s.price / 12 : s.price; }
+function fmtMoney(n) { return '$' + n.toFixed(2); }
+
+function renderSubs() {
+  const totalMonthly = subs.reduce((sum, s) => sum + monthlyEquivalent(s), 0);
+  document.getElementById('subTotalMonthly').textContent = fmtMoney(totalMonthly);
+  document.getElementById('subTotalYearly').textContent = fmtMoney(totalMonthly * 12);
+  document.getElementById('subCountLabel').textContent = `${subs.length} subscription${subs.length === 1 ? '' : 's'}`;
+
+  const dueCount = subs.filter(subNeedsReview).length;
+  const banner = document.getElementById('reviewBanner');
+  banner.innerHTML = dueCount > 0
+    ? `<div class="review-banner">⚠️ ${dueCount} subscription${dueCount > 1 ? 's need' : ' needs'} a price check this month</div>`
+    : '';
+
+  const list = document.getElementById('subList');
+  if (subs.length === 0) { list.innerHTML = '<div class="empty">No subscriptions yet. Add one above to start tracking your spend.</div>'; return; }
+
+  const sorted = [...subs].sort((a, b) => (subNeedsReview(b) - subNeedsReview(a)) || monthlyEquivalent(b) - monthlyEquivalent(a));
+  let html = '';
+  sorted.forEach(s => {
+    const due = subNeedsReview(s);
+    const checkedLabel = s.lastChecked ? `Checked ${s.lastChecked}` : 'Never checked';
+    html += `<div class="sub-item ${due ? 'due' : ''}" data-id="${s.id}">
+      <div class="sub-item-top">
+        <span class="sub-name">${s.name}</span>
+        <span class="sub-cycle">${s.cycle}</span>
+        <span class="sub-price">${fmtMoney(s.price)}</span>
+        <button class="sub-del" data-action="del-sub">×</button>
+      </div>
+      <div class="sub-item-bottom">
+        <span class="sub-checked ${due ? 'due' : ''}">${due ? '⚠ Review due · ' : ''}${checkedLabel}</span>
+        <span>
+          <button class="sub-check-btn" data-action="convert-sub" style="margin-right:6px;">🌐</button>
+          <button class="sub-check-btn" data-action="check-sub">Check price</button>
+        </span>
+      </div>
+      <div class="sub-edit-row" style="display:none;">
+        <input type="number" step="0.01" class="sub-edit-price" value="${s.price}" />
+        <button data-action="confirm-check">Confirm</button>
+      </div>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+document.getElementById('addSubBtn').addEventListener('click', () => {
+  const name = document.getElementById('newSubName').value.trim();
+  const price = parseFloat(document.getElementById('newSubPrice').value);
+  const cycle = document.getElementById('newSubCycle').value;
+  if (!name || isNaN(price)) { showToast('Add a name and price'); return; }
+
+  const existing = subs.find(s => s.name.trim().toLowerCase() === name.toLowerCase());
+  if (existing) {
+    const priceChanged = existing.price !== price;
+    existing.price = price;
+    existing.cycle = cycle;
+    existing.lastChecked = todayKey;
+    showToast(priceChanged ? `${existing.name} price updated to ${fmtMoney(price)}` : `${existing.name} price confirmed`);
+  } else {
+    subs.push({ id: uid(), name, price, cycle, lastChecked: todayKey });
+    showToast(`${name} added — ${fmtMoney(price)}`);
+  }
+  document.getElementById('newSubName').value = ''; document.getElementById('newSubPrice').value = '';
+  document.getElementById('subPriceHint').style.display = 'none';
+  saveSubs(); renderSubs();
+});
+document.getElementById('newSubName').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('addSubBtn').click(); });
+document.getElementById('newSubPrice').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('addSubBtn').click(); });
+
+document.getElementById('subList').addEventListener('click', (e) => {
+  const item = e.target.closest('.sub-item'); if (!item) return;
+  const id = item.dataset.id; const sub = subs.find(s => s.id === id); if (!sub) return;
+  const action = e.target.dataset.action;
+
+  if (action === 'del-sub') {
+    subs = subs.filter(s => s.id !== id); saveSubs(); renderSubs();
+  } else if (action === 'convert-sub') {
+    openFxModal(sub.price, `${sub.name} (${fmtMoney(sub.price)}/${sub.cycle === 'yearly' ? 'yr' : 'mo'})`);
+  } else if (action === 'check-sub') {
+    item.querySelector('.sub-edit-row').style.display = 'flex';
+    item.querySelector('.sub-edit-price').focus();
+  } else if (action === 'confirm-check') {
+    const newPrice = parseFloat(item.querySelector('.sub-edit-price').value);
+    const oldPrice = sub.price;
+    if (!isNaN(newPrice)) sub.price = newPrice;
+    sub.lastChecked = todayKey;
+    saveSubs(); renderSubs();
+    showToast(newPrice !== oldPrice ? 'Price updated' : 'Price confirmed');
+  }
+});
+
+// ---- REPORT ----
+document.querySelectorAll('.rtabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.rtabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active'); reportPeriod = btn.dataset.period; renderReport();
+  });
+});
+function periodRange(period) {
+  const now = new Date(); let start;
+  if (period === 'week') start = startOfWeek(now);
+  else if (period === 'month') start = new Date(now.getFullYear(), now.getMonth(), 1);
+  else start = new Date(now.getFullYear(), 0, 1);
+  start.setHours(0,0,0,0); return { start, end: now };
+}
+function daysBetween(start, end) { const days = []; const d = new Date(start); while (d <= end) { days.push(new Date(d)); d.setDate(d.getDate() + 1); } return days; }
+function renderReport() {
+  if (habits.length === 0) { document.getElementById('reportBars').innerHTML = ''; document.getElementById('reportSummary').textContent = 'Add a quest to see your report.'; return; }
+  const { start, end } = periodRange(reportPeriod); const days = daysBetween(start, end);
+  let totalDone = 0, totalPossible = 0;
+  const perHabit = habits.map(h => {
+    let done = 0; days.forEach(d => { if (h.log[toKey(d)]) done++; });
+    totalDone += done; totalPossible += days.length;
+    return { name: h.name, pct: days.length ? Math.round((done / days.length) * 100) : 0 };
+  });
+  const overallPct = totalPossible ? Math.round((totalDone / totalPossible) * 100) : 0;
+  const periodLabel = reportPeriod === 'week' ? 'this week' : reportPeriod === 'month' ? 'this month' : 'this year';
+  document.getElementById('reportSummary').innerHTML = `You completed <b>${totalDone}</b> of <b>${totalPossible}</b> possible check-ins ${periodLabel} — <b>${overallPct}%</b> overall.`;
+  let barsHtml = '';
+  perHabit.sort((a,b) => b.pct - a.pct).forEach(h => { barsHtml += `<div class="bar-row"><div class="bar-name">${h.name}</div><div class="bar-track"><div class="bar-fill" style="width:${h.pct}%"></div></div><div class="bar-pct">${h.pct}%</div></div>`; });
+  document.getElementById('reportBars').innerHTML = barsHtml;
+}
+
+// ---- ACCOUNTS ----
+let currentUsername = null;
+let authMode = 'signup';
+
+function setAuthMode(mode) {
+  authMode = mode;
+  document.querySelectorAll('#authTabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('authConfirm').style.display = mode === 'signup' ? 'block' : 'none';
+  document.getElementById('authSubmitBtn').textContent = mode === 'signup' ? 'Create account' : 'Log in';
+  document.getElementById('authError').textContent = '';
+}
+document.querySelectorAll('#authTabs button').forEach(b => b.addEventListener('click', () => setAuthMode(b.dataset.mode)));
+
+async function hashPassword(pw) {
+  const enc = new TextEncoder().encode(pw);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function getAccount(lower) {
+  try { const res = await window.storage.get(`account:${lower}`, true); return JSON.parse(res.value); }
+  catch (e) { return null; }
+}
+
+document.getElementById('authSubmitBtn').addEventListener('click', async () => {
+  const username = document.getElementById('authUsername').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authError');
+  errEl.textContent = '';
+  if (!username || !password) { errEl.textContent = 'Enter a username and password.'; return; }
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) { errEl.textContent = 'Username: 3-20 letters, numbers or _.'; return; }
+  const lower = username.toLowerCase();
+
+  if (authMode === 'signup') {
+    const confirmPw = document.getElementById('authConfirm').value;
+    if (password.length < 4) { errEl.textContent = 'Password must be at least 4 characters.'; return; }
+    if (password !== confirmPw) { errEl.textContent = "Passwords don't match."; return; }
+    if (await getAccount(lower)) { errEl.textContent = 'That username is already taken.'; return; }
+    const passwordHash = await hashPassword(password);
+    try {
+      await window.storage.set(`account:${lower}`, JSON.stringify({ username, passwordHash, createdAt: todayKey }), true);
+    } catch (e) { errEl.textContent = 'Could not create account. Try again.'; return; }
+    try { await window.storage.set('session', username, false); } catch (e) {}
+    enterApp(username);
+  } else {
+    const record = await getAccount(lower);
+    if (!record) { errEl.textContent = 'No account with that username.'; return; }
+    const passwordHash = await hashPassword(password);
+    if (passwordHash !== record.passwordHash) { errEl.textContent = 'Incorrect password.'; return; }
+    try { await window.storage.set('session', record.username, false); } catch (e) {}
+    enterApp(record.username);
+  }
+});
+document.getElementById('authPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('authSubmitBtn').click(); });
+document.getElementById('authConfirm').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('authSubmitBtn').click(); });
+
+function enterApp(username) {
+  currentUsername = username;
+  document.getElementById('authOverlay').style.display = 'none';
+  document.getElementById('mainApp').style.display = '';
+  document.getElementById('currentUserLabel').textContent = username;
+  load();
+}
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  try { await window.storage.delete('session', false); } catch (e) {}
+  currentUsername = null;
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('authOverlay').style.display = 'flex';
+  document.getElementById('authUsername').value = '';
+  document.getElementById('authPassword').value = '';
+  document.getElementById('authConfirm').value = '';
+  document.getElementById('authError').textContent = '';
+});
+
+(async function initSession() {
+  try {
+    const res = await window.storage.get('session', false);
+    if (res && res.value) { enterApp(res.value); return; }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
